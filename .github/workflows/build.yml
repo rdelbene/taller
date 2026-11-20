@@ -1,0 +1,54 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+
+      - name: Build debug APK
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle assembleDebug --no-daemon 2>&1 | tee build.log
+
+      - name: Rename APK
+        run: cp build/outputs/apk/debug/*.apk taller.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: taller-apk
+          path: taller.apk
+
+      - name: Publish APK as a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${{ github.run_number }}" taller.apk \
+            --title "Taller build ${{ github.run_number }}" --notes "APK versión 1.0.${{ github.run_number }} (firma fija: se instala encima de la anterior)"
+
+      - name: Publish build log on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          grep -E "^e: |error:|FAILURE|What went wrong" -A3 build.log | head -n 150 > build-errors.log || true
+          tail -n 200 build.log >> build-errors.log || echo "no log" > build-errors.log
+          gh release create "build-${{ github.run_number }}-failed" build-errors.log \
+            --title "FAILED build ${{ github.run_number }}" --notes "Build log"

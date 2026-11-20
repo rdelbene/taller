@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nivel de burbuja (regla con burbuja) y tres gotas de color -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- cuerpo del nivel -->
+    <path android:fillColor="#FFC107" android:pathData="M28,58h52a4,4 0,0 1,4 4v8a4,4 0,0 1,-4 4h-52a4,4 0,0 1,-4 -4v-8a4,4 0,0 1,4 -4z" />
+    <!-- tubo -->
+    <path android:fillColor="#E8F5E9" android:pathData="M44,62h20a4,4 0,0 1,0 8h-20a4,4 0,0 1,0 -8z" />
+    <!-- burbuja -->
+    <path android:fillColor="#4CAF50" android:pathData="M54,63.5a2.5,2.5 0,1 1,0 5a2.5,2.5 0,1 1,0 -5z" />
+    <!-- marcas de regla -->
+    <path android:fillColor="#5D4037" android:pathData="M30,72h1.5v-4h-1.5zM36,72h1.5v-2.5h-1.5zM72,72h1.5v-2.5h-1.5zM78,72h1.5v-4h-1.5z" />
+    <!-- gotas de color -->
+    <path android:fillColor="#F44336" android:pathData="M38,36a7,7 0,1 1,0 14a7,7 0,1 1,0 -14z" />
+    <path android:fillColor="#2196F3" android:pathData="M54,30a7,7 0,1 1,0 14a7,7 0,1 1,0 -14z" />
+    <path android:fillColor="#8BC34A" android:pathData="M70,36a7,7 0,1 1,0 14a7,7 0,1 1,0 -14z" />
+</vector>
