@@ -257,7 +257,8 @@ class ColorActivity : Activity() {
         swatch.text = "${ColorMath.hex(c)}\n${ColorMath.name(c)}"
         swatch.setTextColor(ColorMath.onColor(c))
         swatch.background = rounded(c, dpf(14f), dp(1), 0x33FFFFFF)
-        info.text = ColorMath.describe(c) + (if (gains != null) "  ·  blanco calibrado" else "") + "\nTocá el color para copiar el código."
+        info.text = ColorMath.describe(c) + (if (gains != null) "  ·  blanco calibrado" else "") + "\nTocá el color para copiar el código." +
+            (if (gains == null) "\n¿Sale más gris de lo que es? La cámara le quita color a lo que llena la imagen: calibrá el blanco con una hoja, o no te acerques tanto." else "")
         schemesBox.removeAllViews()
         for ((name, cols) in ColorMath.schemes(c)) {
             schemesBox.addView(label(name, 12f, Color.WHITE, true).apply { setPadding(0, dp(6), 0, dp(3)) })

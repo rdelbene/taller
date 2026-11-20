@@ -71,29 +71,88 @@ object ColorMath {
         return sqrt((p[0] - q[0]).pow(2) + (p[1] - q[1]).pow(2) + (p[2] - q[2]).pow(2))
     }
 
-    // Nombres en castellano (rioplatense) con un color de referencia
-    private val NAMES = listOf(
-        "Blanco" to 0xFFFFFF, "Blanco hueso" to 0xF2EBDD, "Marfil" to 0xFFF8E1, "Crema" to 0xF5E6C8,
-        "Gris muy claro" to 0xDDDDDD, "Gris perla" to 0xC8C8C8, "Gris" to 0x9E9E9E, "Gris topo" to 0x8B8378,
-        "Gris oscuro" to 0x5A5A5A, "Gris grafito" to 0x3A3D40, "Negro" to 0x111111,
-        "Rojo" to 0xD32F2F, "Rojo oscuro" to 0x8E1B1B, "Bordó" to 0x6D1A2A, "Carmín" to 0xB71C3B, "Coral" to 0xFF7F66,
-        "Salmón" to 0xF4A28C, "Rosa" to 0xF48FB1, "Rosa claro" to 0xF8C8D8, "Rosa viejo" to 0xC0868F, "Fucsia" to 0xE91E8C,
-        "Magenta" to 0xD81B9A, "Lila" to 0xC8A2D8, "Lavanda" to 0xD6CCF0, "Violeta" to 0x7E57C2, "Púrpura" to 0x5E2A84, "Berenjena" to 0x3E1F47,
-        "Azul" to 0x1E63C8, "Azul marino" to 0x1A2A55, "Azul oscuro" to 0x0D2C6B, "Azul francia" to 0x2F5FD0, "Celeste" to 0x7EC8F0,
-        "Celeste claro" to 0xC4E4F7, "Azul petróleo" to 0x1F5662, "Turquesa" to 0x26B5B0, "Aguamarina" to 0x7FD8C8, "Cian" to 0x00BCD4,
-        "Verde" to 0x2E9E48, "Verde oscuro" to 0x1B5E20, "Verde inglés" to 0x23402E, "Verde oliva" to 0x6B7A2A, "Verde musgo" to 0x5D6B3A,
-        "Verde lima" to 0xA5D63A, "Verde manzana" to 0x7CC242, "Verde agua" to 0xA8DCC8, "Verde menta" to 0x98E0B8, "Verde salvia" to 0x9CAF88,
-        "Amarillo" to 0xF7D53A, "Amarillo patito" to 0xFFE873, "Amarillo pastel" to 0xFAEDA6, "Mostaza" to 0xC9A227, "Ocre" to 0xC08A2E,
-        "Dorado" to 0xC8A04A, "Naranja" to 0xF57C1F, "Naranja claro" to 0xFFB067, "Terracota" to 0xC25B3A, "Ladrillo" to 0x9C4A33,
-        "Durazno" to 0xF9C7A1, "Beige" to 0xE3D3B4, "Arena" to 0xD6C29A, "Camel" to 0xB98A55, "Habano" to 0x8F6A44,
-        "Marrón" to 0x6D4C33, "Marrón chocolate" to 0x4A2E22, "Caoba" to 0x6E2F22, "Madera clara" to 0xC9A57A, "Madera" to 0x9C6F44,
-        "Cobre" to 0xB06A3B, "Plateado" to 0xB8BCC0
-    )
+    /** Oklab en forma polar: luminosidad (0–100), croma (×100) y tono (0–360°). Más parejo a la vista que Lab. */
+    fun oklch(c: Int): DoubleArray {
+        val r = lin(r(c) / 255.0); val g = lin(g(c) / 255.0); val b = lin(b(c) / 255.0)
+        val l = cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+        val m = cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+        val s = cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+        val L = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s
+        val A = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s
+        val B = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+        var h = Math.toDegrees(kotlin.math.atan2(B, A)); if (h < 0) h += 360
+        return doubleArrayOf(L * 100, sqrt(A * A + B * B) * 100, h)
+    }
 
+    /**
+     * Nombre del color: familia según el tono, y "claro/oscuro/intenso/apagado" según luminosidad y croma.
+     * Los casi grises se nombran como grises con su tinte ("Gris azulado"), que es lo que son muchas paredes y telas.
+     * (Antes se buscaba el más parecido en una lista fija, y como la lista tenía muchos grises, casi todo salía gris.)
+     */
     fun name(c: Int): String {
-        var best = ""; var bd = Double.MAX_VALUE
-        for ((n, v) in NAMES) { val d = deltaE(c, v or (0xFF shl 24)); if (d < bd) { bd = d; best = n } }
-        return best
+        val (L, C, h) = oklch(c).let { Triple(it[0], it[1], it[2]) }
+        if (C < 1.5) return when { L > 95 -> "Blanco"; L > 82 -> "Gris muy claro"; L > 65 -> "Gris claro"; L > 50 -> "Gris"; L > 30 -> "Gris oscuro"; else -> "Negro" }
+        val lm = if (L > 75) " claro" else if (L < 40) " oscuro" else ""
+        if (C < 4) {
+            val t = when { h >= 345 || h < 45 -> "rosado"; h < 105 -> "cálido"; h < 200 -> "verdoso"; h < 285 -> "azulado"; else -> "violáceo" }
+            return when {
+                L > 92 -> if (t == "cálido") "Blanco roto" else "Blanco $t"
+                L < 25 -> "Negro $t"
+                t == "cálido" && L > 80 -> "Beige grisáceo"
+                else -> "Gris $t$lm"
+            }
+        }
+        // generic = admite "claro/oscuro/intenso/apagado"; los nombres específicos ya lo dicen
+        var generic = true
+        val base = when {
+            h >= 345 || h < 20 -> { generic = false; if (L > 72) "Rosa" else if (L < 45) "Bordó" else if (C > 15) "Fucsia" else "Rosa viejo" }
+            h < 45 -> when {
+                L < 45 -> { generic = false; "Bordó" }
+                L > 75 -> { generic = false; if (C < 12) "Salmón" else "Coral" }
+                C < 12 -> { generic = false; "Terracota" }
+                else -> "Rojo"
+            }
+            h < 75 -> when {
+                L < 50 || (L < 62 && C < 9) -> "Marrón"
+                L < 70 && C < 10 -> { generic = false; "Marrón claro" }
+                L > 85 -> { generic = false; "Beige" }
+                L > 74 && C < 10 -> { generic = false; "Durazno" }
+                else -> "Naranja"
+            }
+            h < 105 -> when {
+                L < 60 -> { generic = false; "Verde oliva" }
+                L > 84 && C < 7 -> { generic = false; "Beige" }
+                L < 82 && C > 9 -> { generic = false; "Mostaza" }
+                else -> "Amarillo"
+            }
+            h < 135 -> { generic = false; if (L < 60) "Verde oliva" else if (C < 8) "Verde salvia" else "Verde lima" }
+            h < 170 -> when {
+                C < 8 && L > 65 -> { generic = false; "Verde salvia" }
+                C < 8 -> { generic = false; "Verde musgo" }
+                else -> "Verde"
+            }
+            h < 220 -> when {
+                L > 80 -> { generic = false; "Verde agua" }
+                L < 50 -> { generic = false; "Azul petróleo" }
+                else -> "Turquesa"
+            }
+            h < 245 -> when {
+                L > 65 -> "Celeste"
+                L < 50 -> { generic = false; "Azul petróleo" }
+                else -> { generic = false; "Azul acero" }
+            }
+            h < 285 -> when {
+                L > 72 -> "Celeste"
+                L < 35 -> { generic = false; "Azul marino" }
+                C < 7 -> { generic = false; "Azul grisáceo" }
+                else -> "Azul"
+            }
+            h < 320 -> if (L > 70) { generic = false; "Lila" } else if (L < 45) { generic = false; "Púrpura" } else "Violeta"
+            else -> if (L > 72) { generic = false; "Rosa" } else "Magenta"
+        }
+        if (!generic) return base
+        val cm = if (C > 25) " intenso" else if (C < 7) " apagado" else ""
+        return base + cm + (if (base == "Celeste") "" else lm)
     }
 
     /** Colores que combinan, con su nombre de esquema. */
